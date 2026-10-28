@@ -52,7 +52,7 @@ v0.1. This is the one piece Muse must not reinvent per project. If the tracer ou
 ## 3. Viewer expectations
 
 - Viewer reads only `trace.jsonl`; it must render with zero project-code access (works even if source files moved — click-to-source just fails gracefully).
-- Cost column = `tokens_est * price_per_1k(model)` with an "estimated" tag; prices live in the extension, never in the tracer.
+- Viewer shows `chars` (exact) and `tokens_est` (rough estimate, always labeled estimated). No cost column in v1: per-model pricing varies too much to be meaningful.
 
 ## 4. Versioning
 

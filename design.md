@@ -9,6 +9,7 @@ Draft v0.1. Decisions are hackathon-scoped and reversible; open questions are li
 3. Propose diff, then review: the agent proposes tagging as a normal VS Code diff (1 tracer file + hooks) the user keeps or reverts.
 4. Two planes: extension brain (Meta Model API) is independent of the traced app's models (xAI, local OSS, anything).
 5. Demo honesty: viewer only renders what the tracer wrote; no guessing provenance after the fact beyond labeled heuristics.
+6. Universal by construction: the extension never branches on language. Language-specific knowledge lives only in the agent prompt (Muse adapts the tracer to whatever the project uses); Python/TS templates are reference examples, not a supported list. Any language that can satisfy `contract.md` is supported — a language branch in extension code is a design violation.
 
 ## Architecture
 
@@ -26,6 +27,6 @@ User's AI project (any stack)          CtxWindowExt (VS Code)              Meta 
 1. Connect brain: `Ctx: Set API Key`, `Ctx: Test Connection`.
 2. Tag codebase: `Ctx: Tag Codebase` — agent loops and writes tracer + hooks; user reviews the diff, keeps or reverts.
 3. Run + prompt: user runs their program, sends a message to their AI; tracer appends one run record to `.ctx-tracker/trace.jsonl`.
-4. View trace: `Ctx: Show Trace` — inspect sections, tokens, cost; click through to code.
+4. View trace: `Ctx: Show Trace` — inspect sections, chars, estimated tokens; click through to code.
 5. Remove (optional): `Ctx: Remove Instrumentation` — delete tracer, revert hooks.
 

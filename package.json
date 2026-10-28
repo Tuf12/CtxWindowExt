@@ -1,0 +1,81 @@
+{
+  "name": "ctxwindowext",
+  "displayName": "CtxWindowExt — Context Window Tracker",
+  "description": "Trace your AI app's context window back to the code that built it — chars, estimated tokens, click-to-source.",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tuf12/CtxWindowExt.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:ctxWindowExt.setApiKey",
+    "onCommand:ctxWindowExt.testConnection",
+    "onCommand:ctxWindowExt.tagCodebase",
+    "onCommand:ctxWindowExt.showTrace",
+    "onCommand:ctxWindowExt.removeInstrumentation"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ctxWindowExt.setApiKey",
+        "title": "Ctx: Set API Key"
+      },
+      {
+        "command": "ctxWindowExt.testConnection",
+        "title": "Ctx: Test Connection"
+      },
+      {
+        "command": "ctxWindowExt.tagCodebase",
+        "title": "Ctx: Tag Codebase"
+      },
+      {
+        "command": "ctxWindowExt.showTrace",
+        "title": "Ctx: Show Trace"
+      },
+      {
+        "command": "ctxWindowExt.removeInstrumentation",
+        "title": "Ctx: Remove Instrumentation"
+      }
+    ],
+    "configuration": {
+      "title": "CtxWindowExt",
+      "properties": {
+        "ctxWindowExt.provider": {
+          "type": "string",
+          "enum": ["meta"],
+          "default": "meta",
+          "description": "Model provider for the extension brain. v1 supports Meta Model API only."
+        },
+        "ctxWindowExt.baseURL": {
+          "type": "string",
+          "default": "https://api.meta.ai/v1",
+          "description": "Base URL for the Meta Model API."
+        },
+        "ctxWindowExt.model": {
+          "type": "string",
+          "default": "muse-spark-1.3",
+          "description": "Model ID for the extension brain."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

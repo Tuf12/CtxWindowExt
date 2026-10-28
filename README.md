@@ -1,6 +1,6 @@
 # CtxWindowExt — Context Window Tracker for AI Systems
 
-Status: docs-first draft (v0.1, pre-implementation). Built for the Meta Global AI Developer Hackathon.
+Status: Phase 0 complete — skeleton compiles, 5 commands registered as stubs. Next: Phase 1 provider brain. See `implementation_plan.md`. Built for the Meta Global AI Developer Hackathon.
 
 ## Problem
 
@@ -8,7 +8,7 @@ AI apps stitch prompts from system prompts, tools, history, RAG, and env state. 
 
 ## What this is
 
-A VS Code extension that captures a run's context window from the user's *own* AI project and traces each section back to the code that produced it, with token/cost attribution per section and click-to-source.
+A VS Code extension that captures a run's context window from the user's *own* AI project and traces each section back to the code that produced it, with chars and estimated-token attribution per section and click-to-source.
 
 - The extension is the host/UI layer: commands, provider connection, trace viewer, install/remove logic, and an agent harness. Muse does the code analysis and generates a tiny per-project tracer with one-line hooks.
 - Muse (Meta Model API, `muse-spark-1.3`) analyzes the open project and generates a tiny per-project tracer plus one-line hooks.
@@ -28,7 +28,7 @@ A VS Code extension that captures a run's context window from the user's *own* A
 3. Run `Ctx: Test Connection` (expects `muse-spark-1.3` to answer).
 4. Run `Ctx: Tag Codebase` → review the diff (1 tracer file + hooks), keep or revert.
 5. Run your app, send a prompt to your AI.
-6. Open `Ctx: Show Trace` → review sections, tokens, cost, click through to source.
+6. Open `Ctx: Show Trace` → review sections, chars, estimated tokens, click through to source.
 7. Run `Ctx: Remove Instrumentation` to revert cleanly.
 
 ## Docs

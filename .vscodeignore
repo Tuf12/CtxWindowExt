@@ -1,0 +1,21 @@
+.vscode/**
+.vscode-test/**
+src/**
+.gitignore
+.gitattributes
+tsconfig.json
+**/*.map
+
+# Spec / planning docs (reference only, not shipped)
+contract.md
+design.md
+structure.md
+features.md
+implementation_plan.md
+MUSE.md
+user-notes
+meta-global-ai-developer-hackathon-participant-guide
+quick-start-guide
+
+# Demo targets (never shipped)
+examples/**
