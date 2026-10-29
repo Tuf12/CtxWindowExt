@@ -71,10 +71,17 @@
         "ctxWindowExt.provider": {
           "type": "string",
           "enum": [
-            "meta"
+            "auto",
+            "meta",
+            "cli"
           ],
-          "default": "meta",
-          "description": "Model provider for the extension brain. v1 supports Meta Model API only."
+          "default": "auto",
+          "description": "Brain selection. Auto (default) tries the Muse CLI terminal login first, then falls back to the Meta Model API key. Pin meta or cli to skip the chain."
+        },
+        "ctxWindowExt.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional absolute path to the `muse` CLI. Leave empty to auto-detect on PATH plus ~/.local/bin."
         },
         "ctxWindowExt.baseURL": {
           "type": "string",

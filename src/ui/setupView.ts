@@ -1,16 +1,21 @@
 import * as vscode from 'vscode';
-import { resolveConfig, SUPPORTED_MODELS } from '../provider/registry';
+import { SELECTIONS, resolveConfig, SUPPORTED_MODELS } from '../provider/registry';
+import type { ProviderSummary } from '../provider/registry';
 import { getApiKey, setStoredKey, ENV_KEY_NAME } from '../provider/keys';
-import { testConnection } from '../provider/meta';
+import { checkCli } from '../provider/cli';
+import { testBrainConnection } from '../provider/brain';
 
 type ToView =
   | {
       type: 'status';
       hasKey: boolean;
       sourceLabel: string;
+      provider: string;
+      providers: ProviderSummary[];
       model: string;
       models: string[];
       baseURL: string;
+      cliDetail: string;
     }
   | { type: 'testResult'; ok: boolean; message: string };
 
@@ -19,7 +24,8 @@ type FromView =
   | { type: 'saveKey'; key: string }
   | { type: 'clearKey' }
   | { type: 'testConnection' }
-  | { type: 'setModel'; model: string };
+  | { type: 'setModel'; model: string }
+  | { type: 'setProvider'; provider: string };
 
 export class SetupViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = 'ctxWindowExt.setupView';
@@ -56,30 +62,41 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
           break;
         case 'setModel':
           if (SUPPORTED_MODELS.includes(msg.model)) {
-            await vscode.workspace
-              .getConfiguration('ctxWindowExt')
-              .update('model', msg.model, vscode.ConfigurationTarget.Global);
+            await this.updateSetting(webviewView.webview, 'model', msg.model);
+          } else {
+            await this.postStatus(webviewView.webview);
           }
-          await this.postStatus(webviewView.webview);
+          break;
+        case 'setProvider':
+          if (msg.provider === 'meta' || msg.provider === 'cli' || msg.provider === 'auto') {
+            await this.updateSetting(webviewView.webview, 'provider', msg.provider);
+          } else {
+            await this.postStatus(webviewView.webview);
+          }
           break;
         case 'testConnection': {
-          const { baseURL, model } = this.getConfig();
+          const { provider, baseURL, model, cliPath } = this.getConfig();
           const { key, source } = await getApiKey(this.secrets);
-          if (!key) {
-            await this.post(webviewView.webview, {
-              type: 'testResult',
-              ok: false,
-              message: `No API key set. Enter one above or set ${ENV_KEY_NAME}.`,
-            });
-            break;
-          }
-          const result = await testConnection({ apiKey: key, baseURL, model });
-          const via = source === 'secretStorage' ? 'stored key' : `${ENV_KEY_NAME} env var`;
+          const result = await testBrainConnection({
+            provider,
+            apiKey: key,
+            baseURL,
+            model,
+            cliPath,
+          });
+          const usedCli = result.used === 'cli';
+          const via = usedCli
+            ? 'terminal login'
+            : source === 'secretStorage'
+              ? 'stored key'
+              : `${ENV_KEY_NAME} env var`;
+          const target = usedCli ? 'Muse CLI' : model;
+          const note = result.note ? ` ${result.note}` : '';
           await this.post(webviewView.webview, {
             type: 'testResult',
             ok: result.ok,
             message: result.ok
-              ? `Connected to ${model} via ${via} in ${result.latencyMs} ms. Reply: ${result.reply || '(empty)'}`
+              ? `Connected to ${target} via ${via} in ${result.latencyMs} ms. Reply: ${result.reply || '(empty)'}.${note}`
               : `Failed via ${via}: ${result.message}`,
           });
           break;
@@ -90,32 +107,82 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
 
   private getConfig() {
     const cfg = vscode.workspace.getConfiguration('ctxWindowExt');
-    return resolveConfig({
+    const resolved = resolveConfig({
+      provider: cfg.get<string>('provider'),
       baseURL: cfg.get<string>('baseURL'),
       model: cfg.get<string>('model'),
     });
+    return { ...resolved, cliPath: cfg.get<string>('cliPath')?.trim() || undefined };
   }
 
   private async postStatus(webview: vscode.Webview): Promise<void> {
-    const { baseURL, model } = this.getConfig();
+    const { provider, baseURL, model, cliPath } = this.getConfig();
     const { key, source } = await getApiKey(this.secrets);
-    const sourceLabel = !key
+    let hasKey = Boolean(key);
+    let sourceLabel = !key
       ? 'No API key set'
       : source === 'secretStorage'
         ? 'API key: stored securely in VS Code'
         : `API key: using ${ENV_KEY_NAME} environment variable`;
+    let cliDetail = '';
+    if (provider === 'cli') {
+      const cli = await checkCli(cliPath);
+      hasKey = cli.found;
+      sourceLabel = cli.found
+        ? `Muse CLI: detected${cli.version ? ` (${cli.version})` : ''}`
+        : 'Muse CLI: not found — install it and log in from your terminal';
+      cliDetail = cli.found
+        ? `No key needed — uses your terminal login (${cli.path}).`
+        : 'No key needed — but the `muse` binary was not found on PATH or ~/.local/bin.';
+    } else if (provider === 'auto') {
+      const cli = await checkCli(cliPath);
+      hasKey = cli.found || Boolean(key);
+      if (cli.found && key) {
+        sourceLabel = 'Auto: CLI detected and API key set — CLI first, key as fallback';
+      } else if (cli.found) {
+        sourceLabel = `Auto: CLI detected${cli.version ? ` (${cli.version})` : ''} — API key fallback not set`;
+      } else if (key) {
+        sourceLabel = 'Auto: CLI not found — will use API key';
+      } else {
+        sourceLabel = 'Auto: no CLI and no API key set';
+      }
+      cliDetail = cli.found
+        ? `Terminal login ready (${cli.path}); the API key below is the fallback.`
+        : 'Muse CLI not found — the API key below is the active path.';
+    }
     await this.post(webview, {
       type: 'status',
-      hasKey: Boolean(key),
+      hasKey,
       sourceLabel,
+      provider,
+      providers: SELECTIONS,
       model,
       models: SUPPORTED_MODELS,
       baseURL,
+      cliDetail,
     });
   }
 
   private async post(webview: vscode.Webview, msg: ToView): Promise<void> {
     await webview.postMessage(msg);
+  }
+
+  /** Persist a setting, surface failures loudly, then always refresh status. */
+  private async updateSetting(
+    webview: vscode.Webview,
+    key: 'model' | 'provider',
+    value: string,
+  ): Promise<void> {
+    try {
+      await vscode.workspace
+        .getConfiguration('ctxWindowExt')
+        .update(key, value, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Ctx: could not save ${key} setting: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+    await this.postStatus(webview);
   }
 
   private getHtml(webview: vscode.Webview): string {
@@ -196,20 +263,29 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
   <h2>1 · Status</h2>
   <div id="status" class="status missing">Loading…</div>
 
-  <h2>2 · Brain model</h2>
+  <h2>2 · Brain provider</h2>
+  <label for="provider">Which brain drives the extension (your app may use any model)</label>
+  <select id="provider"></select>
+  <div id="cliHint" class="meta"></div>
+
+  <div id="modelSection">
+  <h2>3 · Brain model</h2>
   <label for="model">Model used by this extension (your app may use any model)</label>
   <select id="model"></select>
   <div id="baseurl" class="meta"></div>
+  </div>
 
-  <h2>3 · API key</h2>
+  <div id="keySection">
+  <h2>4 · API key</h2>
   <label for="key">Meta Model API key — stored in VS Code SecretStorage, never in your code</label>
   <input id="key" type="password" placeholder="Paste key, then Save" autocomplete="off" spellcheck="false">
   <div class="row">
     <button id="save">Save key</button>
     <button id="clear" class="secondary">Clear</button>
   </div>
+  </div>
 
-  <h2>4 · Verify</h2>
+  <h2>5 · Verify</h2>
   <div class="row">
     <button id="test" class="secondary">Test connection</button>
   </div>
@@ -230,6 +306,19 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
     const el = $('status');
     el.textContent = msg.sourceLabel;
     el.className = 'status ' + (msg.hasKey ? 'ok' : 'missing');
+    const prov = $('provider');
+    prov.textContent = '';
+    for (const p of msg.providers) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.displayName;
+      if (p.id === msg.provider) { opt.selected = true; }
+      prov.appendChild(opt);
+    }
+    const pinnedCli = msg.provider === 'cli';
+    $('modelSection').style.display = pinnedCli ? 'none' : '';
+    $('keySection').style.display = pinnedCli ? 'none' : '';
+    $('cliHint').textContent = msg.provider === 'meta' ? '' : msg.cliDetail;
     const sel = $('model');
     sel.textContent = '';
     for (const m of msg.models) {
@@ -276,6 +365,9 @@ export class SetupViewProvider implements vscode.WebviewViewProvider {
   });
   $('model').addEventListener('change', (e) => {
     vscode.postMessage({ type: 'setModel', model: e.target.value });
+  });
+  $('provider').addEventListener('change', (e) => {
+    vscode.postMessage({ type: 'setProvider', provider: e.target.value });
   });
 
   vscode.postMessage({ type: 'ready' });

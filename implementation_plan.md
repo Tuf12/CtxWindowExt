@@ -51,7 +51,25 @@ Exit gate (revised 2026-10-28): live `Test Connection` succeeds via the sidebar 
 
 Live-verify status: negative path verified headless (dummy key → clean 401 message). Positive path PENDING user run through the sidebar UI — see MUSE.md journal.
 
-Exit gate: live `Test Connection` succeeds against `api.meta.ai/v1` and fails gracefully with no key set.
+### Phase 1b — CLI fallback brain (Muse passthrough)
+
+Goal: unblock the brain without a Meta dashboard key; zero-config path for users already logged into Muse in their terminal. Meta stays the default (Stage 1 judging).
+
+Files: `src/provider/cli.ts`, `src/provider/brain.ts`, registry/provider settings, Setup view provider picker.
+
+- [x] `cli.ts`: `muse exec --json` runner (injectable spawn), defensive JSONL reply extraction, CLI resolution (setting → PATH → `~/.local/bin`), availability check; never passes or reads API keys
+- [x] `brain.ts`: Test Connection dispatch on selected provider
+- [x] Registry: `meta | cli` providers, `normalizeProviderId`; `package.json` provider enum + `cliPath` setting; Meta stays default
+- [x] `Ctx: Test Connection` (palette + sidebar) dispatches per provider; no key required for CLI
+- [x] Sidebar Setup view: provider picker, CLI status + "no key needed" hint, key/model sections hidden for CLI
+- [x] Unit tests: arg building, reply extraction, path resolution, runner mapping, dispatch (`cli.test.ts`, `brain.test.ts`)
+- [x] Auto chain (default): CLI first, API-key fallback; `meta`/`cli` pins preserved; results carry which brain answered + fallback note; Setup status describes the active path
+
+Exit gate NEARLY PASSED 2026-10-29: `npm test` 63/63 green; headless detection OK (finds install, v1.4.14); user live-verified CLI Test Connection (3730 ms, Reply: OK, no key). Remaining: live Auto-default test (expect CLI success), graceful-fail check with CLI missing (bogus Cli Path → combined failure message), plus real `--json` sample as parser regression fixture.
+
+Exit gate: live `Test Connection` succeeds with provider=Muse CLI (no key set), and fails gracefully when the CLI is missing.
+
+Note: Ollama fallback (possible Phase 1c) deferred until user confirms `ollama serve` + pastes `ollama list` for the model tag.
 
 ### Phase 2 — Trace contract fixtures + store/watcher
 
@@ -73,15 +91,31 @@ Exit gate: `npm test` passes; store correctly parses fixtures and computes chars
 
 Goal: `Ctx: Show Trace` delivers the core demo value on fixture data alone.
 
-Files: `src/ui/panel.ts`, `src/ui/webview/*`.
+Files: `src/ui/panel.ts`, `src/ui/viewModel.ts` (pure, vscode-free), `src/ui/webview/*`.
 
-- [ ] Webview lists runs (run_id, ts, model, totals) and per-run sections (label, kind, chars, tokens_est with "estimated" label)
-- [ ] Section body view with truncation notice; full body never fetched from project code
-- [ ] Click-to-source: `source.file` + `lines` → open editor; fail gracefully if file moved (per `contract.md` §3)
-- [ ] Version-mismatch banner (warn, not error) when `tracer.version` ≠ `contract_version`
-- [ ] Live refresh on new appended runs via watcher
+Decisions (2026-10-29):
 
-Exit gate: viewer renders all fixtures correctly, survives deleted source files, updates within ~1s of a new appended line.
+- Trace file resolves per active workspace folder: `<active-root>/.ctx-tracker/trace.jsonl` (one trace dir per root in multi-root workspaces; no shared file).
+- One run shown at a time; latest run selected by default; run picker to switch.
+- Section detail includes `stack` entries.
+- Per-section history across runs ("previous input for a section") is V2 — recorded in `features.md`, out of v1.
+
+- [x] Webview shows one run at a time (run picker: run_id, ts, model, totals); latest run selected by default
+- [x] Per-run sections list (label, kind, chars, tokens_est with "estimated" label)
+- [x] Section body view with truncation notice; full body never fetched from project code
+- [x] Section detail includes `stack` entries
+- [x] Click-to-source: `source.file` + `lines` resolved against the trace file's workspace root → open editor; fail gracefully if file moved (per `contract.md` §3)
+- [x] Version-mismatch banner (warn, not error) when `tracer.version` ≠ `contract_version`
+- [x] Parse-warnings row: surface store `ParseWarning`s (skipped lines, unknown kinds) in the viewer
+- [x] Empty states: no workspace folder open, no trace file yet, all lines skipped — each renders a friendly message, never blank/error
+- [x] Live refresh on new appended runs via watcher
+- [x] View-model builder is vscode-free and unit-tested (`node:test`): latest-run default, warnings passthrough, body/displayBody shaping
+- [x] Webview payload contains `displayBody` only (full `body` stripped); run-list + selected-run-detail messaging so payload doesn't grow with run count
+- [x] Security: CSP nonce + `textContent`-only rendering of bodies (untrusted content), same pattern as `setupView.ts`
+
+Exit gate PARTIAL 2026-10-29: `npm test` 36/36 green; headless probe OK (watcher→messages on all fixtures, 155 ms refresh, no body leak). GUI half PENDING user F5 run: fixture rendering in the webview, deleted-source survival, live refresh visible.
+
+Exit gate: viewer renders all fixtures correctly (manual: copy each fixture into a scratch `<root>/.ctx-tracker/trace.jsonl` and check runs/sections/warnings/empty states), survives deleted source files, updates within ~1s of a new appended line; `npm test` green including view-model tests.
 
 ### Phase 4 — Agent tag loop (install + remove)
 
@@ -132,9 +166,8 @@ Exit gate: clean-profile install works, video recorded, submission posted before
 
 ## Risks / Open Questions
 
-- `features.md` is referenced but missing — Phase 0 writes it; if its scope exceeds the above, re-phase before coding.
- User deleted features.md and attempted to remove all traces of features.md as well but missed some, features.md was not a good spec doc. 
-- No `git` repo yet — Phase 0 inits; new-work-only judging needs clean history from here.
+- [x] RESOLVED Phase 0: `features.md` written; scope fits this plan (was: referenced but missing).
+- [x] RESOLVED Phase 0: git repo init'd with public remote; new-work-only history starts clean (was: no repo yet).
 - Meta API key/credits: claim $150 credits early (`participant-guide` §5); without a key Phase 1+ stalls — fallback is `MODEL_API_KEY` env + mocked provider for UI work only.
 - Agent hook placement quality on arbitrary user code is the main technical risk; mitigation is the `validate` tool + diff review (human in the loop), not blind install.
 - Token estimates stay rough (`ceil(chars/4)`): never present them as exact counts; `chars` is the precise number.

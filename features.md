@@ -4,7 +4,7 @@ v0.1 scope for the hackathon. See `contract.md` for the frozen trace/install con
 
 ## v1 scope
 
-- **Provider brain (Meta first):** `Ctx: Set API Key` (SecretStorage, `MODEL_API_KEY` fallback) and `Ctx: Test Connection` against `muse-spark-1.3` at `https://api.meta.ai/v1`. Other providers are a settings stub only.
+- **Provider brain (Auto by default):** tries the Muse CLI from your terminal login first (no key), falls back to the Meta Model API key (`Ctx: Set API Key`, SecretStorage, `MODEL_API_KEY` fallback) against `muse-spark-1.3` at `https://api.meta.ai/v1`. Pin either provider to skip the chain. Any further providers stay a settings stub.
 - **Agent tagging:** `Ctx: Tag Codebase` — Muse analyzes the open project and proposes a diff: exactly one tracer file per language (`ctx_trace.py` / `ctxTrace.ts`) plus one-line `CTX-TRACKER` hooks. User reviews, keeps, or reverts. Manifest-driven.
 - **Trace viewer:** `Ctx: Show Trace` renders runs/sections from `.ctx-tracker/trace.jsonl` with exact `chars`, rough estimated `tokens_est` (`ceil(chars/4)`, always labeled estimated), and click-to-source that fails gracefully when files moved.
 - **Clean removal:** `Ctx: Remove Instrumentation` deletes the tracer, restores hooked snippets byte-identical, keeps trace output (user data).
@@ -15,6 +15,7 @@ v0.1 scope for the hackathon. See `contract.md` for the frozen trace/install con
 - Exact token counts via real tokenizers (tiktoken / model-specific counters) alongside the rough estimator.
 - More reference templates (Go, Rust, …) as few-shot examples for the agent — the contract already admits any language.
 - Run-over-run trend view (which section is growing?).
+- Per-section history across runs (view a section's previous inputs over time).
 - Optional cost plugins per provider (out of core; pricing varies too much to ship as a built-in).
 - Trace sharing / export (markdown report of a run).
 

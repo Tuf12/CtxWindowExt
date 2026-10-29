@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { resolveConfig } from './provider/registry';
 import { getApiKey, setStoredKey, redactKey, ENV_KEY_NAME } from './provider/keys';
-import { testConnection } from './provider/meta';
+import { testBrainConnection } from './provider/brain';
 import { SetupViewProvider } from './ui/setupView';
+import { TracePanel } from './ui/panel';
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -38,29 +39,41 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('ctxWindowExt.testConnection', async () => {
       const cfg = vscode.workspace.getConfiguration('ctxWindowExt');
-      const { baseURL, model } = resolveConfig({
+      const { provider, baseURL, model } = resolveConfig({
+        provider: cfg.get<string>('provider'),
         baseURL: cfg.get<string>('baseURL'),
         model: cfg.get<string>('model'),
       });
+      const cliPath = cfg.get<string>('cliPath')?.trim() || undefined;
       const { key, source } = await getApiKey(context.secrets);
-      if (!key) {
+      if (provider === 'meta' && !key) {
         vscode.window.showErrorMessage(
-          `Ctx: no API key found. Run "Ctx: Set API Key" or set the ${ENV_KEY_NAME} environment variable.`,
+          `Ctx: no API key found. Run "Ctx: Set API Key", set the ${ENV_KEY_NAME} environment variable, or switch the provider to Muse CLI.`,
         );
         return;
       }
-      const sourceLabel =
-        source === 'secretStorage' ? `stored key (ending ${redactKey(key)})` : `${ENV_KEY_NAME} env var`;
+      const progressTitle =
+        provider === 'auto'
+          ? 'Ctx: testing connection (auto: CLI, then API key)…'
+          : `Ctx: testing connection to ${provider === 'cli' ? 'Muse CLI' : model}…`;
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Ctx: testing connection to ${model}…`,
+          title: progressTitle,
         },
         async () => {
-          const result = await testConnection({ apiKey: key, baseURL, model });
+          const result = await testBrainConnection({ provider, apiKey: key, baseURL, model, cliPath });
+          const usedCli = result.used === 'cli';
+          const sourceLabel = usedCli
+            ? 'terminal login'
+            : source === 'secretStorage'
+              ? `stored key (ending ${redactKey(key ?? '')})`
+              : `${ENV_KEY_NAME} env var`;
+          const target = usedCli ? 'Muse CLI' : model;
+          const note = result.note ? ` ${result.note}` : '';
           if (result.ok) {
             vscode.window.showInformationMessage(
-              `Ctx: connected to ${model} via ${sourceLabel} in ${result.latencyMs} ms. Reply: ${result.reply || '(empty)'}`,
+              `Ctx: connected to ${target} via ${sourceLabel} in ${result.latencyMs} ms. Reply: ${result.reply || '(empty)'}.${note}`,
             );
           } else {
             vscode.window.showErrorMessage(`Ctx: connection failed (${sourceLabel}): ${result.message}`);
@@ -70,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand('ctxWindowExt.tagCodebase', () => stub('Phase 4')),
-    vscode.commands.registerCommand('ctxWindowExt.showTrace', () => stub('Phase 3')),
+    vscode.commands.registerCommand('ctxWindowExt.showTrace', () => TracePanel.show(context)),
     vscode.commands.registerCommand('ctxWindowExt.removeInstrumentation', () => stub('Phase 4')),
   );
 }

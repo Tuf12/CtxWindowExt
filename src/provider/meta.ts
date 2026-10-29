@@ -2,6 +2,7 @@
 // Pure module — no vscode import. Never logs or returns key material.
 
 import OpenAI from 'openai';
+import type { ProviderId } from './registry';
 
 export interface TestConnectionOptions {
   apiKey: string;
@@ -12,9 +13,13 @@ export interface TestConnectionOptions {
 
 export interface TestConnectionResult {
   ok: boolean;
+  /** Which concrete brain produced this result (matters when a chain falls back). */
+  used: ProviderId;
   message: string;
   latencyMs: number;
   reply?: string;
+  /** Set when a chain fell back past a failed leg. */
+  note?: string;
 }
 
 export async function testConnection(opts: TestConnectionOptions): Promise<TestConnectionResult> {
@@ -35,6 +40,7 @@ export async function testConnection(opts: TestConnectionOptions): Promise<TestC
     const reply = (response.output_text ?? '').trim();
     return {
       ok: true,
+      used: 'meta',
       latencyMs,
       reply,
       message: `Connected to ${opts.model} in ${latencyMs} ms. Reply: ${reply || '(empty)'}`,
@@ -42,6 +48,7 @@ export async function testConnection(opts: TestConnectionOptions): Promise<TestC
   } catch (err) {
     return {
       ok: false,
+      used: 'meta',
       latencyMs: Date.now() - started,
       message: describeError(err, opts.model),
     };

@@ -14,10 +14,9 @@ Project memory for Muse Code sessions. Append entries as work happens; keep each
 
 - [x] Phase 0 — scaffolding + docs gap close (done 2026-10-28, uncommitted; user owns commits)
 - [ ] Phase 1 — provider brain (code done 2026-10-28; positive live test BLOCKED on Meta dashboard key access — gate reopens before Phase 4)
+- [ ] Phase 1b — CLI fallback brain (code done 2026-10-29, 58/58 green; live CLI test PASSED by user 2026-10-29; missing-CLI negative check still open)
 - [x] Phase 2 — trace fixtures + store/watcher (done 2026-10-28, 19/19 tests green)
-- [ ] Phase 1 — provider brain
-- [ ] Phase 2 — trace fixtures + store/watcher
-- [ ] Phase 3 — viewer UI
+- [ ] Phase 3 — viewer UI (code done 2026-10-29, 36/36 tests green; GUI half of gate PENDING user F5 run)
 - [ ] Phase 4 — agent tag loop
 - [ ] Phase 5 — demo apps + E2E
 - [ ] Phase 6 — submission polish
@@ -30,6 +29,8 @@ Project memory for Muse Code sessions. Append entries as work happens; keep each
 - 2026-10-28: No cost feature anywhere in v1 (per-model pricing varies too much). Viewer shows exact `chars` + rough `tokens_est` (`ceil(chars/4)`), always labeled estimated. Scrubbed from README, contract, design, plan.
 - 2026-10-28: Universal-by-construction (`design.md` P6): no language branches in extension code; Python/TS are reference templates + demos only. User challenged the 2-language framing; docs updated.
 - 2026-10-28: Sidebar Setup view is the primary UX (user rejected palette-only key entry as sketchy). Palette commands stay as secondary path. Phase 1 exit gate revised: verify via sidebar UI.
+- 2026-10-29: CLI fallback brain (Phase 1b): `muse exec` passthrough for keyless use; Meta stays default (judging). Ollama deferred to possible 1c pending `ollama list`.
+- 2026-10-29: Auto provider chain is the default UX (CLI first, API-key fallback); explicit `meta`/`cli` pins preserved. Pin Meta for the judging demo/video to keep central Meta usage obvious.
 
 ## Journal
 
@@ -71,3 +72,32 @@ Project memory for Muse Code sessions. Append entries as work happens; keep each
 - Test harness: `node:test` + `assert/strict`, `npm test` = compile + `node --test out/test/`. 19/19 green first run. Compiled tests excluded from vsix via `.vscodeignore`.
 - Decisions: store recomputes totals from sections (ignores stored totals); unknown kinds kept as-is with warning; missing trace file = empty, not error.
 - Open question for later: extension-level proxy support (VS Code `http.proxy` settings) — out of Phase 1 scope, fine for direct-internet users.
+
+### 2026-10-29 — Phase 3 scope review
+
+- User decisions: trace file per active workspace folder (multi-root = one `.ctx-tracker/` per root); one run at a time, latest by default; include `stack` in section detail; per-section history deferred to V2 (`features.md`).
+- Folded 5 review concerns into Phase 3: warnings row, empty states, view-model tests, displayBody-only payload, CSP/textContent security pattern.
+- Still no Meta API key (2026-10-29); positive live test stays open, backstop before Phase 4. Doc hygiene cleaned (stale Phase 1 gate line, resolved risks, duplicate tracker lines).
+- Next: implement Phase 3.
+
+### 2026-10-29 — Phase 3 executed
+
+- Added `src/ui/viewModel.ts` (pure: run summaries, displayBody-only detail, latest-default selection, empty states, source-path resolve), `src/ui/webview/html.ts` (pure HTML shell, inline script, textContent-only), `src/ui/panel.ts` (wiring: per-folder trace resolve, watcher, run-list + detail messages, click-to-source with graceful fail). Wired `Ctx: Show Trace`.
+- Tests: `src/test/viewModel.test.ts` + `src/test/traceHtml.test.ts`, 17 new; `npm test` 36/36 green. Headless probe `/tmp/ctx-phase3-probe.js`: all fixtures through watcher→messages, 155 ms refresh, no body leak.
+- Decisions: webview script stays inline in `html.ts` (tsconfig has no DOM lib; matches setupView pattern); explicit run selection sticks across appends, missing selection falls back to latest; warnings list capped at 50 in the view.
+- GUI half of exit gate needs user F5: fixture rendering, deleted-source survival, visible live refresh.
+
+### 2026-10-29 — Phase 1b executed
+
+- Added `src/provider/cli.ts` (exec runner, defensive JSONL extraction, PATH+~/.local/bin resolution, availability check) and `src/provider/brain.ts` (Test Connection dispatch). Registry + settings + Setup view now offer meta | cli; Meta stays default.
+- Tests: `cli.test.ts` + `brain.test.ts`, 22 new; `npm test` 58/58 green. Headless probe `/tmp/ctx-phase1b-probe.js`: resolves real install (v1.4.14).
+- Parser shape is defensive-pending-real-output: still need user paste of `muse exec --json` stdout to lock it with a regression test.
+- Debug session: provider selection silently not sticking — root cause was the user's own corrupt `settings.json` (VS Code refused all writes to it), not extension code. Hardened `setupView.ts` so settings-write failures surface via popup and the UI always re-syncs to stored values.
+- User live-verified CLI Test Connection 2026-10-29 (3730 ms, Reply: OK, no key). Missing-CLI negative check still open.
+- Next: close 1b gate (negative check + `--json` fixture); then Phase 4 agent loop can target the CLI brain.
+
+### 2026-10-29 — Auto provider chain
+
+- Registry: `auto | meta | cli` selections, `resolveChain` (auto → CLI then meta); results carry `used` + fallback `note`; `Test Connection` (both paths) and Setup status describe the active brain.
+- Tests: `brain.test.ts` now 7 chain tests (fallback, pins, unknown→auto); `npm test` 63/63 green.
+- Next: user live-verifies Auto default + missing-CLI combined failure; still want the `--json` paste.
