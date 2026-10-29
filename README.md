@@ -1,6 +1,6 @@
 # CtxWindowExt — Context Window Tracker for AI Systems
 
-Status: Phase 0 complete — skeleton compiles, 5 commands registered as stubs. Next: Phase 1 provider brain. See `implementation_plan.md`. Built for the Meta Global AI Developer Hackathon.
+Status: Phase 2 complete — trace store + watcher tested (19/19 green). Phase 1 live key test still pending (dashboard access issue). Next: Phase 3 trace viewer. See `implementation_plan.md`. Built for the Meta Global AI Developer Hackathon.
 
 ## Problem
 

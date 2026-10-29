@@ -16,6 +16,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onView:ctxWindowExt.setupView",
     "onCommand:ctxWindowExt.setApiKey",
     "onCommand:ctxWindowExt.testConnection",
     "onCommand:ctxWindowExt.tagCodebase",
@@ -24,6 +25,24 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ctxwindowext",
+          "title": "CtxWindowExt",
+          "icon": "resources/ctx-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ctxwindowext": [
+        {
+          "type": "webview",
+          "id": "ctxWindowExt.setupView",
+          "name": "Setup"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "ctxWindowExt.setApiKey",
@@ -51,7 +70,9 @@
       "properties": {
         "ctxWindowExt.provider": {
           "type": "string",
-          "enum": ["meta"],
+          "enum": [
+            "meta"
+          ],
           "default": "meta",
           "description": "Model provider for the extension brain. v1 supports Meta Model API only."
         },
@@ -71,11 +92,15 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test out/test/"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "openai": "^6.49.0"
   }
 }

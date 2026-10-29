@@ -5,6 +5,7 @@ src/**
 .gitattributes
 tsconfig.json
 **/*.map
+out/test/**
 
 # Spec / planning docs (reference only, not shipped)
 contract.md

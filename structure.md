@@ -22,6 +22,7 @@ Proposed repo layout for the extension (draft v0.1). All code is generated with 
 │   │   ├── watcher.ts           # watches .ctx-tracker/trace.jsonl
 │   │   └── store.ts             # parses runs, computes per section chars and rough token estimator, no costs
 │   └── ui/
+│       ├── setupView.ts         # sidebar Setup webview (about, model select, key, test)
 │       ├── panel.ts             # Ctx: Show Trace webview wiring
 │       └── webview/             # trace viewer (sections, tokens, click-to-source)
 ├── resources/                   # icons, walkthrough assets
@@ -31,7 +32,8 @@ Proposed repo layout for the extension (draft v0.1). All code is generated with 
 ## Runtime pieces
 
 - **Extension host:** owns settings, SecretStorage key, Meta API calls, diff apply/revert.
-- **Webview:** renders runs/sections from the trace store; sends "open source" messages back.
+- **Setup webview (sidebar):** the extension's face — branding, status, model select, API key input, connection test. Key material travels view→host on save only, never host→view.
+- **Trace webview:** renders runs/sections from the trace store; sends "open source" messages back.
 - **Generated tracer (per user project):** one file, e.g. `ctx_trace.py` / `ctxTrace.ts`. Only job: wrap message building, tag sections, append JSONL.
 - **Hooks (per user project):** one line per send site calling the tracer. Marked `CTX-TRACKER` for clean removal.
 - **Trace output:** `<user-project>/.ctx-tracker/trace.jsonl` (gitignored) + `install-manifest.json` for revert.

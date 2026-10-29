@@ -40,11 +40,16 @@ Goal: prove the Meta integration first (Stage 1 pass/fail needs obvious, central
 
 Files: `src/provider/meta.ts`, `src/provider/registry.ts` (defer `cli.ts` unless needed).
 
-- [ ] `registry.ts`: provider defaults meta / `https://api.meta.ai/v1` / `muse-spark-1.3` (limits ctx 1M / out 128K per `quick-start-guide`)
-- [ ] `meta.ts`: OpenAI-SDK client with baseURL override, explicit apiKey passing (SDK does not auto-read `MODEL_API_KEY`)
-- [ ] `Ctx: Set API Key` → SecretStorage; read fallback `MODEL_API_KEY` env
-- [ ] `Ctx: Test Connection` → minimal `muse-spark-1.3` call, show success/failure message (surface 401/404 distinctly per `quick-start-guide` troubleshooting)
-- [ ] Redaction helper: never log key material
+- [x] `registry.ts`: provider defaults meta / `https://api.meta.ai/v1` / `muse-spark-1.3` (limits ctx 1M / out 128K per `quick-start-guide`)
+- [x] `meta.ts`: OpenAI-SDK client with baseURL override, explicit apiKey passing (SDK does not auto-read `MODEL_API_KEY`)
+- [x] `Ctx: Set API Key` → SecretStorage; read fallback `MODEL_API_KEY` env
+- [x] `Ctx: Test Connection` → minimal `muse-spark-1.3` call, show success/failure message (surface 401/404 distinctly per `quick-start-guide` troubleshooting)
+- [x] Redaction helper: never log key material
+- [x] Sidebar Setup view (`src/ui/setupView.ts`): branded panel with about text, status, model select, key input + save/clear, Test connection button (primary UI; palette commands remain as secondary path)
+
+Exit gate (revised 2026-10-28): live `Test Connection` succeeds via the sidebar Setup view and fails gracefully with no key set.
+
+Live-verify status: negative path verified headless (dummy key → clean 401 message). Positive path PENDING user run through the sidebar UI — see MUSE.md journal.
 
 Exit gate: live `Test Connection` succeeds against `api.meta.ai/v1` and fails gracefully with no key set.
 
@@ -54,11 +59,13 @@ Goal: the fixed contract becomes executable truth before any UI or agent exists.
 
 Files: `src/trace/store.ts`, `src/trace/watcher.ts`, test fixtures.
 
-- [ ] Hand-write 2–3 fixture `trace.jsonl` lines covering all 7 `kind` values, truncation flag, redacted secret, version mismatch (per `contract.md` §1, §4)
-- [ ] `store.ts`: parse JSONL (skip bad lines with warning), per-section chars, `tokens_est = ceil(chars/4)` labeled estimated, totals
-- [ ] Display rule: `chars` shown exact, `tokens_est` always labeled estimated; no cost column (per `contract.md` §3)
-- [ ] `watcher.ts`: watch `.ctx-tracker/trace.jsonl`, re-parse on append
-- [ ] Unit tests: parser, token estimator (`ceil(chars/4)`), truncation at 20K chars/section, mismatch warning path
+- [x] Hand-write 2–3 fixture `trace.jsonl` lines covering all 7 `kind` values, truncation flag, redacted secret, version mismatch (per `contract.md` §1, §4)
+- [x] `store.ts`: parse JSONL (skip bad lines with warning), per-section chars, `tokens_est = ceil(chars/4)` labeled estimated, totals
+- [x] Display rule: `chars` shown exact, `tokens_est` always labeled estimated; no cost column (per `contract.md` §3)
+- [x] `watcher.ts`: watch `.ctx-tracker/trace.jsonl`, re-parse on append
+- [x] Unit tests: parser, token estimator (`ceil(chars/4)`), truncation at 20K chars/section, mismatch warning path
+
+Exit gate PASSED 2026-10-28: `npm test` 19/19 green; fixtures parse with computed totals, zero project-source access.
 
 Exit gate: `npm test` passes; store correctly parses fixtures and computes chars/tokens_est totals without touching any project source.
 
@@ -126,6 +133,7 @@ Exit gate: clean-profile install works, video recorded, submission posted before
 ## Risks / Open Questions
 
 - `features.md` is referenced but missing — Phase 0 writes it; if its scope exceeds the above, re-phase before coding.
+ User deleted features.md and attempted to remove all traces of features.md as well but missed some, features.md was not a good spec doc. 
 - No `git` repo yet — Phase 0 inits; new-work-only judging needs clean history from here.
 - Meta API key/credits: claim $150 credits early (`participant-guide` §5); without a key Phase 1+ stalls — fallback is `MODEL_API_KEY` env + mocked provider for UI work only.
 - Agent hook placement quality on arbitrary user code is the main technical risk; mitigation is the `validate` tool + diff review (human in the loop), not blind install.

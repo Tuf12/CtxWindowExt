@@ -13,6 +13,8 @@ Project memory for Muse Code sessions. Append entries as work happens; keep each
 ## Phase tracker
 
 - [x] Phase 0 — scaffolding + docs gap close (done 2026-10-28, uncommitted; user owns commits)
+- [ ] Phase 1 — provider brain (code done 2026-10-28; positive live test BLOCKED on Meta dashboard key access — gate reopens before Phase 4)
+- [x] Phase 2 — trace fixtures + store/watcher (done 2026-10-28, 19/19 tests green)
 - [ ] Phase 1 — provider brain
 - [ ] Phase 2 — trace fixtures + store/watcher
 - [ ] Phase 3 — viewer UI
@@ -27,6 +29,7 @@ Project memory for Muse Code sessions. Append entries as work happens; keep each
 - 2026-10-28: Other providers stay a settings stub; Meta-only is acceptable v1 if time is short.
 - 2026-10-28: No cost feature anywhere in v1 (per-model pricing varies too much). Viewer shows exact `chars` + rough `tokens_est` (`ceil(chars/4)`), always labeled estimated. Scrubbed from README, contract, design, plan.
 - 2026-10-28: Universal-by-construction (`design.md` P6): no language branches in extension code; Python/TS are reference templates + demos only. User challenged the 2-language framing; docs updated.
+- 2026-10-28: Sidebar Setup view is the primary UX (user rejected palette-only key entry as sketchy). Palette commands stay as secondary path. Phase 1 exit gate revised: verify via sidebar UI.
 
 ## Journal
 
@@ -50,3 +53,21 @@ Project memory for Muse Code sessions. Append entries as work happens; keep each
 - Added: `features.md`, `LICENSE` (MIT), `package.json`, `tsconfig.json`, `src/extension.ts` (5 stub commands), `.vscodeignore`.
 - `npm install` needed `--cache /tmp/npm-cache` (sandbox blocks `~/.npm`); compiled clean, all 5 commands verified in `out/extension.js`.
 - Left everything uncommitted — user owns commits. Next: Phase 1 provider brain (needs Meta API key for live test).
+
+### 2026-10-28 — Phase 1 code done, live test pending
+
+- Added `src/provider/{registry,keys,meta}.ts`; wired `Ctx: Set API Key` + `Ctx: Test Connection` in `src/extension.ts`. `openai` added as dependency.
+- Provider modules are vscode-free (type-only import in keys.ts) so compiled output is headless-testable.
+- Negative path verified: dummy key → `Invalid API key (401)...`, exit 1. Sandbox needed a ProxyAgent harness (`/tmp/ctx-test.js` + undici in `/tmp/ctx-proxy`) — Node fetch ignores proxy env; harness-only, zero repo impact.
+- Positive path needs the user's real key: either `export MODEL_API_KEY=...; node /tmp/ctx-test.js` (tests compiled code, key never printed) or F5 → Set API Key → Test Connection (tests full extension path). Do NOT ask for the key in chat.
+- 2026-10-28: user deferred the positive live test ("move to the end when we have something to connect to"). Noted misconception: Test Connection targets Meta's API (exists now), not something we build later. Accepted; gate recorded as deferred. Latest safe point to close it: before Phase 4 agent work. Phases 2–3 don't touch the provider, so order is safe.
+- 2026-10-28: user then rejected palette-only UX outright; built sidebar Setup view instead (`src/ui/setupView.ts` + activity-bar container `ctxwindowext` + `resources/ctx-icon.svg`). Styled with VS Code theme vars (no custom palette/gradients). Deferral superseded: user will verify through the sidebar UI.
+- 2026-10-28: user blocked on key access — Meta dashboard created 2 keys without revealing them, logout loop prevents creating another. Positive live test stays open. Recovery: different browser/incognito, Discord #office-hours (Meta team, 10–11 AM ET weekdays). NOT blocking Phases 2–3 (no provider touch); backstop still before Phase 4.
+
+### 2026-10-28 — Phase 2 executed
+
+- Added `src/trace/store.ts` (parse, estimate, truncate, version check) and `src/trace/watcher.ts` (fs.watch + debounced re-parse). Both vscode-free.
+- Fixtures in `src/test/fixtures.ts`: 7-kind run (totals 1904 chars / 475 est), version-mismatch run (25K body, unknown kind), mixed doc (garbage + blank + broken + minimal lines).
+- Test harness: `node:test` + `assert/strict`, `npm test` = compile + `node --test out/test/`. 19/19 green first run. Compiled tests excluded from vsix via `.vscodeignore`.
+- Decisions: store recomputes totals from sections (ignores stored totals); unknown kinds kept as-is with warning; missing trace file = empty, not error.
+- Open question for later: extension-level proxy support (VS Code `http.proxy` settings) — out of Phase 1 scope, fine for direct-internet users.
